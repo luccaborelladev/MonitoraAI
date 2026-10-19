@@ -9,8 +9,8 @@ Plataforma que conecta estudantes que precisam de ajuda em uma disciplina com mo
 | Item | Link |
 |---|---|
 | 📄 **PRD (Documento de Requisitos do Produto)** | [docs/PRD.md](docs/PRD.md) |
-| 📋 **GitHub Project (acompanhamento das atividades)** | `<https://github.com/luccaborelladev/MonitoraAI/projects>` |
-| 📁 **Repositório** | `<https://github.com/luccaborelladev/MonitoraAI>` |
+| 📋 **GitHub Project (acompanhamento das atividades)** | `https://github.com/luccaborelladev/MonitoraAI/projects` |
+| 📁 **Repositório** | `https://github.com/luccaborelladev/MonitoraAI` |
 
 ## Sobre o projeto
 
