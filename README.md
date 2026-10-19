@@ -54,15 +54,6 @@ A justificativa da escolha, exemplos de documentos, índices, regras de acesso e
 
 Fora do MVP: agendamento, envio de arquivos, notificações, avaliação de monitores e painel de coordenação. Veja o [escopo completo](docs/PRD.md#2-escopo).
 
-## Equipe
-
-| Integrante | GitHub | Papel |
-|---|---|---|
-| Nome do Integrante 1 | [@usuario1](https://github.com/usuario1) | Product Owner / Documentação |
-| Nome do Integrante 2 | [@usuario2](https://github.com/usuario2) | Líder técnico / Back-end |
-| Nome do Integrante 3 | [@usuario3](https://github.com/usuario3) | Back-end / Banco de dados |
-| Nome do Integrante 4 | [@usuario4](https://github.com/usuario4) | Front-end |
-| Nome do Integrante 5 | [@usuario5](https://github.com/usuario5) | QA / DevOps |
 
 Responsabilidades detalhadas, backlog, prazos, dependências e riscos estão na [gerência do projeto](docs/PRD.md#4-gerência-do-projeto).
 
