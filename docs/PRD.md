@@ -1,6 +1,6 @@
 # PRD — MonitoraAí
 
-> **Product Requirements Document** · Versão 1.1 · Etapa de planejamento
+> **Product Requirements Document** · Versão 1.2 · Etapa de planejamento
 > **Equipe:** Rafael, Guilherme, Lucca e Metheus · **MVP:** até 02/11/2026 · **Entrega final:** até 16/11/2026
 > Repositório: `<https://github.com/luccaborelladev/MonitoraAI>` · GitHub Project: `<https://github.com/luccaborelladev/MonitoraAI/projects>`
 
@@ -98,7 +98,8 @@ O MVP entrega o **fluxo essencial**: *cadastrar → achar um monitor → convers
 - Controle de acesso por participante em todas as consultas e envios.
 - Aplicação web responsiva (funciona no navegador do celular e do computador).
 - Mensagens em **texto simples**.
-- Novas mensagens exibidas por **polling simples** (consulta periódica de poucos segundos).
+- Novas mensagens exibidas em **tempo real** para os participantes, usando os *listeners* nativos do **Firebase Realtime Database**.
+- **Sem servidor próprio**: o front-end acessa o Firebase (Authentication + Realtime Database), protegido por *Security Rules*.
 
 ### 2.3 Entrega final (até 16/11/2026)
 
@@ -106,7 +107,6 @@ Após o MVP, a entrega final acrescenta:
 
 - **Salas de estudo por disciplina** (F06).
 - **Indicador de mensagens não lidas** (F08).
-- **Atualização em tempo real** com WebSocket, substituindo o polling.
 - Edição de perfil, testes completos dos critérios de aceitação e documentação final.
 
 ### 2.4 Fora do escopo do MVP e da entrega final
@@ -150,17 +150,17 @@ Após o MVP, a entrega final acrescenta:
 
 | ID | Categoria | Requisito |
 |---|---|---|
-| RNF01 | Desempenho | Listar as 30 últimas mensagens de uma conversa deve levar no máximo 500 ms (p95) com 100 mil mensagens armazenadas. |
+| RNF01 | Desempenho | Carregar as 30 últimas mensagens de uma conversa deve levar no máximo 1 s (p95), baixando apenas essas 30 mensagens, mesmo com 100 mil mensagens armazenadas. |
 | RNF02 | Desempenho | O envio de uma mensagem deve ser confirmado ao remetente em até 1 s (p95). |
-| RNF03 | Segurança | Senhas armazenadas com hash seguro (bcrypt ou argon2); nunca em texto puro. |
-| RNF04 | Segurança | Toda requisição ao chat exige autenticação (token JWT ou sessão). |
+| RNF03 | Segurança | Autenticação gerenciada pelo Firebase Authentication; senhas nunca são armazenadas pelo sistema. |
+| RNF04 | Segurança | Toda leitura e escrita no banco exige usuário autenticado e é validada pelas *Security Rules* do Realtime Database. |
 | RNF05 | Segurança | Comunicação via HTTPS em produção. |
 | RNF06 | Privacidade | Dados pessoais limitados ao necessário (nome, e-mail, curso), em conformidade com a LGPD. |
 | RNF07 | Disponibilidade | Meta de 99% de disponibilidade durante o período de avaliação. |
 | RNF08 | Usabilidade | Interface responsiva, utilizável em telas a partir de 360 px de largura. |
 | RNF09 | Manutenibilidade | Código versionado no GitHub, com revisão por *pull request* e README com instruções de execução. |
-| RNF10 | Escalabilidade | O modelo de dados do chat deve permitir crescimento do volume de mensagens sem degradar a consulta do histórico (uso de índices e paginação). |
-| RNF11 | Portabilidade | O sistema deve rodar localmente via Docker Compose. |
+| RNF10 | Escalabilidade | O modelo de dados deve usar estrutura plana, paginação por chave e `.indexOn`, para que o crescimento do histórico não degrade a abertura de conversas. |
+| RNF11 | Portabilidade | O sistema deve rodar localmente com o Firebase Emulator Suite, sem depender do projeto em produção. |
 
 ### 3.3 Histórias de usuário e critérios de aceitação
 
@@ -208,7 +208,7 @@ Após o MVP, a entrega final acrescenta:
 - **CA05.2** — Dado que envio uma mensagem, quando o envio é concluído, então ela aparece no final da conversa para mim e para os demais participantes em até 2 s.
 - **CA05.3** — Dado que tento enviar mensagem vazia ou só com espaços, quando clico em enviar, então nada é salvo e vejo aviso de validação.
 - **CA05.4** — Dado que a mensagem excede 2.000 caracteres, quando tento enviar, então ela é recusada com aviso.
-- **CA05.5** — Dado que não participo da conversa, quando tento enviar mensagem a ela (ex.: via API), então recebo resposta **403 Forbidden** e nada é salvo.
+- **CA05.5** — Dado que não participo da conversa, quando tento enviar mensagem a ela, então a escrita é recusada pelas Security Rules (`PERMISSION_DENIED`) e nada é salvo.
 
 #### HU06 — Consultar histórico
 
@@ -216,8 +216,8 @@ Após o MVP, a entrega final acrescenta:
 
 - **CA06.1** — Dado que abro uma conversa, quando ela carrega, então vejo as 30 mensagens mais recentes, da mais antiga para a mais recente (de cima para baixo).
 - **CA06.2** — Dado que existem mais de 30 mensagens, quando rolo até o topo ou clico em "Carregar anteriores", então as 30 mensagens imediatamente anteriores são carregadas, sem repetição nem lacunas.
-- **CA06.3** — Dado que duas mensagens têm o mesmo horário, quando o histórico é exibido, então a ordem entre elas é determinística (desempate por número de sequência).
-- **CA06.4** — Dado que não participo da conversa, quando tento consultar o histórico, então recebo **403 Forbidden**.
+- **CA06.3** — Dado que duas mensagens são enviadas no mesmo instante, quando o histórico é exibido, então a ordem entre elas é determinística (ordenação pela chave da mensagem).
+- **CA06.4** — Dado que não participo da conversa, quando tento consultar o histórico, então a leitura é recusada pelas Security Rules (`PERMISSION_DENIED`).
 - **CA06.5** — Dado que recarrego a página, quando abro a mesma conversa, então todas as mensagens enviadas anteriormente continuam disponíveis (persistência).
 
 #### HU07 — Lista de conversas e não lidas
@@ -246,12 +246,12 @@ Após o MVP, a entrega final acrescenta:
 
 > Substituir os usuários do GitHub pelos reais.
 
-| Integrante | Papel | Responsabilidades principais |
+| Integrante | GitHub | Papel | Responsabilidades principais |
 |---|---|---|---|
 | **Rafael** | **Product Owner / Documentação / QA** | Manter o PRD, o README e o backlog; organizar o GitHub Project; perfil do monitor e busca; testes dos critérios de aceitação |
-| **Guilherme** | **Líder técnico / Back-end / DevOps** | Arquitetura, Docker Compose, API de conversas (criação, envio, controle de acesso), WebSocket, salas de estudo |
-| **Lucca** | **Back-end / Banco de dados** | Modelagem do MongoDB, índices, dados de exemplo, autenticação, histórico paginado, mensagens não lidas |
-| **Metheus** | **Front-end** | Telas de cadastro/login, busca, lista de conversas, chat e salas; integração com a API |
+| **Guilherme** | **Líder técnico / Firebase** | Arquitetura, projeto Firebase e Emulator Suite, Security Rules, criação de conversas e envio de mensagens, salas de estudo |
+| **Lucca** | **Modelagem de dados / Back-end** | Modelagem da árvore do Realtime Database, dados de exemplo, autenticação, histórico paginado, tempo real e mensagens não lidas |
+| **Metheus** | **Front-end** | Telas de cadastro/login, busca, lista de conversas, chat e salas; integração com o SDK do Firebase |
 
 > Todos revisam *pull requests* uns dos outros. Cada issue tem **um** responsável principal.
 
@@ -262,63 +262,63 @@ Entrega: **MVP** = até 02/11/2026 · **Final** = até 16/11/2026.
 Cada linha deve virar uma **issue** no GitHub.
 
 | # | Item (título da issue) | Tipo | Prioridade | Responsável | Entrega |
-|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|
 | 1 | Escrever e publicar o PRD em `docs/PRD.md` | Documentação | P0 | Rafael | MVP |
 | 2 | Criar repositório, README e GitHub Project | Organização | P0 | Rafael | MVP |
 | 3 | Cadastrar issues, status e responsáveis no Project | Organização | P0 | Rafael | MVP |
-| 4 | Definir arquitetura e stack tecnológica | Técnico | P0 | Guilherme | MVP |
-| 5 | Modelar coleções do MongoDB (users, conversations, messages) | Banco | P0 | Lucca | MVP |
-| 6 | Criar índices e script de dados de exemplo | Banco | P0 | Lucca | MVP |
-| 7 | Configurar Docker Compose (API + MongoDB) | DevOps | P0 | Guilherme | MVP |
-| 8 | Implementar cadastro e login (RF01–RF03) | Feature | P0 | Lucca | MVP |
+| 4 | Definir arquitetura (front-end + Firebase) e stack tecnológica | Técnico | P0 | Guilherme | MVP |
+| 5 | Modelar a árvore do Realtime Database (users, conversations, messages, userConversations) | Banco | P0 | Lucca | MVP |
+| 6 | Criar dados de exemplo (seed JSON) e índices (`.indexOn`) | Banco | P0 | Lucca | MVP |
+| 7 | Criar projeto Firebase (Authentication + Realtime Database) e configurar Emulator Suite | DevOps | P0 | Guilherme | MVP |
+| 8 | Implementar cadastro e login com Firebase Authentication (RF01–RF03) | Feature | P0 | Lucca | MVP |
 | 9 | Implementar perfil e disciplinas do monitor (RF04) | Feature | P0 | Rafael | MVP |
 | 10 | Implementar busca de monitores por disciplina (RF05) | Feature | P0 | Rafael | MVP |
 | 11 | Implementar criação de conversa direta sem duplicidade (RF06–RF07) | Feature | P0 | Guilherme | MVP |
 | 12 | Implementar envio de mensagens com validação (RF08) | Feature | P0 | Guilherme | MVP |
 | 13 | Implementar consulta paginada do histórico (RF09–RF10) | Feature | P0 | Lucca | MVP |
-| 14 | Implementar controle de acesso por participante (RF14) | Feature | P0 | Guilherme | MVP |
+| 14 | Escrever Security Rules de controle de acesso por participante (RF14) | Feature | P0 | Guilherme | MVP |
 | 15 | Tela de cadastro e login | Front-end | P0 | Metheus | MVP |
 | 16 | Tela de busca de monitores | Front-end | P0 | Metheus | MVP |
-| 17 | Tela de chat (envio, histórico, rolagem, polling) | Front-end | P0 | Metheus | MVP |
+| 17 | Tela de chat (envio, histórico, rolagem e tempo real) | Front-end | P0 | Metheus | MVP |
 | 18 | Lista de conversas ordenada por atividade (RF11) | Feature | P0 | Metheus | MVP |
 | 19 | Contador de mensagens não lidas (RF12) | Feature | P1 | Lucca | Final |
 | 20 | Salas de estudo por disciplina (RF13) | Feature | P1 | Guilherme | Final |
-| 21 | Atualização em tempo real com WebSocket | Técnico | P1 | Guilherme | Final |
-| 22 | Testes dos critérios de aceitação (HU01–HU08) | Qualidade | P1 | Rafael | Final |
+| 21 | Sincronização em tempo real com *listeners* (`onChildAdded`) | Técnico | P0 | Lucca | MVP |
+| 22 | Testes dos critérios de aceitação (HU01–HU08) e das Security Rules | Qualidade | P1 | Rafael | Final |
 | 23 | Edição de perfil (RF15) | Feature | P2 | Metheus | Final |
-| 24 | Documentar API e instruções de execução no README | Documentação | P2 | Rafael | Final |
+| 24 | Documentar estrutura de dados, Security Rules e instruções de execução no README | Documentação | P2 | Rafael | Final |
 | 25 | Telas de salas de estudo e indicador de não lidas | Front-end | P1 | Metheus | Final |
-
 
 ### 4.3 Etapas e prazos
 
 | Etapa | Período | Entregas | Marco |
 |---|---|---|---|
 | **1. Planejamento** | 19/10 – 22/10/2026 | PRD publicado, repositório e GitHub Project com issues | Entrega do planejamento |
-| **2. Fundação técnica** | 23/10 – 26/10/2026 | Stack definida, Docker Compose, coleções e índices, autenticação | Ambiente rodando para todos |
-| **3. Núcleo do chat (MVP)** | 27/10 – 02/11/2026 | Perfil, busca de monitores, conversa direta, envio, histórico paginado, controle de acesso, lista de conversas | **MVP entregue até 02/11/2026** |
-| **4. Complementos** | 03/11 – 09/11/2026 | Salas de estudo, mensagens não lidas, WebSocket, edição de perfil | Funcionalidades finais prontas |
-| **5. Testes e documentação** | 10/11 – 14/11/2026 | Testes dos critérios de aceitação, correções, README e documentação da API | Versão estável |
+| **2. Fundação técnica** | 23/10 – 26/10/2026 | Projeto Firebase, Emulator Suite, árvore de dados modelada, Security Rules iniciais, autenticação | Ambiente rodando para todos |
+| **3. Núcleo do chat (MVP)** | 27/10 – 02/11/2026 | Perfil, busca de monitores, conversa direta, envio, histórico paginado, tempo real, lista de conversas | **MVP entregue até 02/11/2026** |
+| **4. Complementos** | 03/11 – 09/11/2026 | Salas de estudo, mensagens não lidas, edição de perfil | Funcionalidades finais prontas |
+| **5. Testes e documentação** | 10/11 – 14/11/2026 | Testes dos critérios de aceitação e das Security Rules, correções, README | Versão estável |
 | **6. Entrega final** | 15/11 – 16/11/2026 | Revisão dos links, do PRD e do Project | **Entrega final até 16/11/2026** |
 
 ### 4.4 Dependências
 
 | Dependência | Impacto | Tratamento |
 |---|---|---|
-| Modelagem do MongoDB (#5) precisa estar pronta antes das features de chat (#11–#14) | Alto | Concluir #5 e #6 na etapa 2 (até 26/10) |
-| Autenticação (#8) é pré-requisito para todo o controle de acesso | Alto | Priorizar logo após Docker Compose |
-| Telas de chat (#17) dependem dos endpoints de envio e histórico (#12, #13) | Médio | Front-end usa dados simulados (*mock*) até a API ficar pronta |
-| Lista de conversas (#18) e não lidas (#19) dependem da estrutura de conversas (#11) | Médio | Lista de conversas (#18) no MVP; não lidas (#19) na etapa 4 |
-| Disponibilidade de ferramentas externas (GitHub, Docker, MongoDB local ou Atlas) | Baixo | Alternativa: MongoDB local via Docker |
+| Projeto Firebase (#7) criado antes de qualquer código que use o banco | Alto | Primeira tarefa técnica da etapa 2 (até 24/10) |
+| Modelagem da árvore do Realtime Database (#5) precisa estar pronta antes das features de chat (#11–#14, #21) | Alto | Concluir #5 e #6 na etapa 2 (até 26/10) |
+| Autenticação (#8) é pré-requisito para as Security Rules (#14), que usam `auth.uid` | Alto | Priorizar logo após a criação do projeto Firebase |
+| Telas de chat (#17) dependem dos serviços de envio, histórico e tempo real (#12, #13, #21) | Médio | Front-end usa dados simulados (*mock*) ou o Emulator até os serviços ficarem prontos |
+| Lista de conversas (#18) depende da estrutura de conversas (#11) | Médio | Lista de conversas no MVP; não lidas (#19) na etapa 4 |
+| Disponibilidade de ferramentas externas (GitHub, Firebase, Node.js) | Baixo | Alternativa: Firebase Emulator Suite local |
 
 ### 4.5 Riscos e estratégias de mitigação
 
 | # | Risco | Probabilidade | Impacto | Estratégia |
 |---|---|---|---|---|
-| R1 | Prazo curto: MVP em 2 semanas (até 02/11) com 4 integrantes | Alta | Alto | MVP reduzido ao fluxo essencial; salas, não lidas e WebSocket ficam para a entrega final; itens P2 só entram se sobrar tempo |
-| R2 | Pouca experiência do grupo com MongoDB | Média | Médio | Estudo guiado na etapa 2; modelagem revisada em conjunto |
+| R1 | Prazo curto: MVP em 2 semanas (até 02/11) com 4 integrantes | Alta | Alto | MVP reduzido ao fluxo essencial; salas e não lidas ficam para a entrega final; itens P2 só entram se sobrar tempo |
+| R2 | Pouca experiência do grupo com Realtime Database e Security Rules | Média | Médio | Estudo guiado na etapa 2; modelagem e regras revisadas em conjunto; testes no Emulator Suite |
 | R3 | Integrante ausente ou com pouca disponibilidade (equipe de 4 pessoas) | Média | Alto | Revisão cruzada de PRs; conhecimento compartilhado; redistribuir issues na reunião |
-| R4 | Dificuldade com tempo real (WebSocket) | Média | Médio | O MVP já usa *polling* a cada poucos segundos (atende ao critério de 2 s); se o WebSocket não ficar pronto até 09/11, o *polling* permanece na entrega final |
+| R4 | Limites do plano gratuito do Firebase e Security Rules mal configuradas | Média | Médio | Conferir os limites do plano antes da demonstração; manter dados de teste pequenos; testar as regras no Emulator e evitar regras abertas (`.read/.write: true`) no projeto publicado |
 | R5 | Conflitos de merge | Alta | Baixo | Branches curtas por issue, PRs pequenos, `main` protegida |
 | R6 | Degradação de desempenho com muitas mensagens | Baixa | Médio | Índices desde o início; paginação por cursor; teste com dados de exemplo em volume |
 | R7 | Vazamento de conversas por falha de autorização | Baixa | Alto | Verificação de participação em **toda** consulta/escrita; testes dedicados (CA05.5, CA06.4) |
@@ -327,271 +327,373 @@ Cada linha deve virar uma **issue** no GitHub.
 ### 4.6 Acompanhamento do andamento
 
 - **GitHub Project público** com colunas **A fazer → Em andamento → Concluído**, vinculado ao repositório.
-- **Campos do Project:** responsável, prioridade (P0/P1/P2), estimativa, etapa (milestone).
+- **Campos do Project:** responsável, prioridade (P0/P1/P2), entrega (MVP ou Final), etapa (milestone).
 - **Issues** com critérios de aceitação no corpo e rótulos (`feature`, `banco`, `front-end`, `documentação`, `bug`).
 - **Reunião** de 30 min **duas vezes por semana** (prazo curto): o que foi concluído, o que está bloqueado, replanejamento.
 - **Daily assíncrona** (mensagem curta no grupo): ontem, hoje, bloqueios.
 - **Regra de fluxo:** ninguém tem mais de 2 issues em "Em andamento" ao mesmo tempo.
 - **Definição de pronto:** código revisado em PR, critérios de aceitação verificados, issue movida para "Concluído".
-- **Acompanhamento de progresso:** pontos concluídos vs. planejados por etapa, comparados a cada reunião.
+- **Acompanhamento de progresso:** issues concluídas vs. planejadas por etapa (e por entrega: MVP e Final), comparadas a cada reunião.
 
 ---
 
 ## 5. Funcionalidade de conversa com NoSQL
+
+Banco escolhido: **Firebase Realtime Database**, banco NoSQL que guarda os dados em uma **árvore JSON** e sincroniza as alterações com os clientes conectados em tempo real.
 
 ### 5.1 Quem pode conversar
 
 | Tipo de conversa | Participantes | Quem pode iniciar |
 |---|---|---|
 | **Direta (1:1)** | Exatamente 2 usuários cadastrados | Qualquer usuário autenticado, a partir do perfil de outro |
-| **Sala de estudo (grupo)** *(entrega final)* | Vários usuários, vinculada a uma disciplina | Salas são criadas pela equipe/seed; qualquer usuário autenticado pode entrar |
+| **Sala de estudo (grupo)** *(entrega final)* | Vários usuários, vinculada a uma disciplina | Salas são criadas pela equipe (seed/console do Firebase); qualquer usuário autenticado pode entrar |
 
-Combinações permitidas: aluno ↔ monitor, aluno ↔ aluno, monitor ↔ monitor.
+Combinações permitidas na conversa direta: aluno ↔ monitor, aluno ↔ aluno, monitor ↔ monitor.
 
 ### 5.2 Como as conversas são iniciadas
 
-**Conversa direta**
+**Conversa direta** (três passos, nesta ordem):
 
 1. O usuário abre o perfil de outra pessoa e clica em **Conversar**.
-2. O sistema gera uma chave determinística `directKey` com os dois IDs em ordem alfabética (ex.: `u_ana#u_bruno`).
-3. Se já existe conversa com essa chave, ela é reaberta; senão, uma nova é criada.
-4. Um **índice único** sobre `directKey` garante que não haja duplicatas, mesmo com dois cliques simultâneos.
+2. O app monta a chave `directKey` com os dois UIDs em ordem alfabética (ex.: `uidAna_uidBruno`) e tenta gravar `directConversations/{directKey} = {conversationId}`. A regra `!data.exists()` faz a gravação funcionar **uma única vez**. Se ela falhar, a conversa já existe: o app lê o `conversationId` salvo e a abre (nenhuma duplicata, mesmo com dois cliques simultâneos).
+3. Se a gravação foi aceita, o app cria `conversations/{conversationId}` (metadados e os 2 participantes) e, em seguida, registra a conversa em `userConversations/{uid}/{conversationId}` para os dois usuários.
 
 **Sala de estudo** *(entrega final, até 16/11)*
 
 1. O usuário abre a lista de salas por disciplina e clica em **Entrar**.
-2. Seu ID é adicionado à lista de participantes (operação idempotente).
-3. Para sair, seu ID é removido; o acesso ao histórico é encerrado.
+2. Seu UID é gravado em `conversations/{id}/participants/{uid}` (operação idempotente).
+3. Para sair, esse nó é removido; o acesso ao histórico é encerrado imediatamente.
 
 ### 5.3 Como as mensagens são enviadas, consultadas e armazenadas
 
 **Envio**
 
-1. O cliente envia `POST /conversations/{id}/messages` com o texto.
-2. A API autentica o usuário e confere se ele está em `participantIds` da conversa.
-3. A API valida o texto (não vazio, até 2.000 caracteres).
-4. A API insere o documento em `messages`, com `createdAt` definido **pelo servidor**.
-5. A API atualiza a conversa (`lastMessage`, `lastMessageAt`, `messageCount`) para refletir a atividade mais recente.
-6. A API responde `201 Created` com a mensagem salva; os outros participantes a recebem por *polling* no MVP e por WebSocket na entrega final.
+1. O app gera a chave da mensagem com `push()`. Essas chaves são **ordenadas cronologicamente**.
+2. O app grava tudo em **uma única operação atômica** (`update` em vários caminhos): a mensagem em `messages/{conversationId}/{messageId}`, o resumo `lastMessage`/`lastMessageAt` em `conversations/{id}/meta` e o `lastMessageAt` de cada participante em `userConversations`.
+3. O horário `createdAt` é o **do servidor** (`serverTimestamp()`), nunca o do dispositivo.
+4. As **Security Rules** validam a escrita (usuário é participante, `senderId` é o usuário autenticado, texto de 1 a 2.000 caracteres). Se qualquer regra falhar, **nada** é gravado.
+5. Os outros participantes recebem a mensagem pelo *listener* (`onChildAdded`), sem recarregar a página.
 
 **Consulta**
 
-- `GET /conversations/{id}/messages?limit=30&before={cursor}` — retorna as mensagens mais recentes (ou as imediatamente anteriores ao cursor), com paginação.
-- `GET /conversations` — lista as conversas do usuário, da atividade mais recente para a mais antiga.
+- Histórico: lê as 30 últimas mensagens ordenadas pela chave; páginas anteriores usam a menor chave já carregada como cursor.
+- Lista de conversas: lê `userConversations/{uid}` ordenado por `lastMessageAt` e busca os metadados de cada conversa.
 
 **Armazenamento**
 
-- Cada mensagem é um **documento próprio** na coleção `messages` (não embutido na conversa). Isso evita documentos que crescem sem limite (MongoDB limita documentos a 16 MB) e permite paginar e indexar por conversa.
+- As mensagens ficam em uma **árvore separada** (`messages`), e não dentro de `conversations`. Como o Realtime Database baixa **todos os filhos** de um nó ao lê-lo, essa separação permite abrir uma conversa ou listar as conversas sem baixar o histórico completo.
 
 ### 5.4 Banco NoSQL escolhido e justificativa
 
-**Escolha: MongoDB** (banco de documentos).
+**Escolha: Firebase Realtime Database** (banco NoSQL em árvore JSON, definido como requisito da disciplina).
 
 | Critério | Justificativa |
 |---|---|
-| **Modelo de dados** | Mensagens e conversas são naturalmente documentos JSON, com estrutura simples e pouco relacionamento complexo. |
-| **Flexibilidade de esquema** | Versões futuras (anexos, reações, respostas a mensagens) adicionam campos sem migração de tabelas. |
-| **Desempenho de leitura/escrita** | Inserções rápidas e consultas eficientes por `conversationId` + data, com índice composto. |
-| **Paginação** | Suporte natural a ordenação e paginação por cursor usando índices. |
-| **Escalabilidade** | Permite escalar horizontalmente (sharding por `conversationId`) se o volume crescer. |
-| **Ecossistema** | Drivers maduros (Node.js, Python, Java), MongoDB Compass para inspeção, imagem oficial no Docker, camada gratuita no Atlas. |
-| **Curva de aprendizado** | Sintaxe simples e ampla documentação, adequada ao prazo do grupo. |
+| **Tempo real nativo** | O SDK mantém uma conexão aberta e notifica os clientes a cada nova mensagem (`onChildAdded`), sem *polling* nem servidor WebSocket próprio. |
+| **Adequação ao chat** | Dados simples, gravações pequenas e frequentes e necessidade de baixa latência, que é o caso de uso típico do Realtime Database. |
+| **Sem servidor próprio** | O front-end acessa o banco direto; as Security Rules garantem o controle de acesso. Isso reduz o trabalho do MVP de 2 semanas. |
+| **Autenticação integrada** | O Firebase Authentication fornece `auth.uid`, usado nas regras para saber quem é o participante. |
+| **Ordenação por chave** | As chaves geradas por `push()` são cronológicas, o que dá ordem estável das mensagens sem precisar de campo extra. |
+| **Desenvolvimento local** | O Firebase Emulator Suite permite testar banco, autenticação e regras sem usar o projeto publicado. |
+| **Custo** | O plano gratuito atende o volume de uma demonstração acadêmica. |
+
+**Limitações do Realtime Database e como o projeto lida com elas**
+
+| Limitação | Como lidamos |
+|---|---|
+| Não há *joins* entre nós | Dados **denormalizados**: o resumo da última mensagem fica na conversa; um índice por usuário (`userConversations`) lista suas conversas. |
+| Ler um nó baixa todos os seus filhos | Estrutura **plana**: mensagens, participantes e metadados em árvores separadas. |
+| Consultas aceitam apenas uma ordenação/filtro por vez | Uso da **chave** como ordenação principal do histórico e de `.indexOn` onde há `orderByChild`. |
+| Não há contagem nativa de itens | "Não lidas" é calculado a partir de `lastReadKey` (última mensagem lida) de cada usuário. |
+| Não há transações entre vários nós sem regras próprias | Uso de `update` em múltiplos caminhos (atômico) e regra `!data.exists()` para evitar duplicatas. |
 
 **Alternativas consideradas**
 
-- **Firebase Firestore:** ótimo para tempo real, mas prende o projeto a um serviço proprietário e limita a prática de modelagem e índices.
-- **Cassandra:** excelente para mensagens em escala muito grande, porém com complexidade operacional desproporcional ao MVP.
-- **Redis:** rápido, mas voltado a cache e estruturas em memória; não ideal como armazenamento principal e durável do histórico.
+- **Cloud Firestore:** também NoSQL e do Firebase, com consultas mais ricas, mas o Realtime Database é o solicitado e é mais simples para mensagens em fluxo contínuo.
+- **MongoDB:** consultas mais flexíveis, porém exigiria servidor próprio e WebSocket para o tempo real, o que não cabe no prazo do MVP.
 
 ### 5.5 Organização dos dados
 
-Três coleções: `users`, `conversations` e `messages`.
+Árvore principal do banco (nós no nível raiz):
 
-> Os dados de **perfil** ficam em `users`. Os participantes são referenciados por ID em `conversations`, e a conversa guarda um pequeno *resumo* (`lastMessage`) para a lista de conversas ser montada **sem consultar `messages`**.
-
-#### Coleção `users`
-
-```json
-{
-  "_id": "u_ana",
-  "name": "Ana Souza",
-  "email": "ana@exemplo.com",
-  "passwordHash": "$2b$12$...",
-  "role": "student",
-  "course": "Ciência da Computação",
-  "subjects": [],
-  "createdAt": "2026-10-27T13:00:00Z"
-}
+```
+/
+├── users/{uid}
+├── subjects/{subjectId}
+├── subjectTutors/{subjectId}/{uid}
+├── directConversations/{directKey}
+├── conversations/{conversationId}/meta
+│                                 /participants/{uid}
+├── messages/{conversationId}/{messageId}
+└── userConversations/{uid}/{conversationId}
 ```
 
-```json
-{
-  "_id": "u_bruno",
-  "name": "Bruno Lima",
-  "email": "bruno@exemplo.com",
-  "passwordHash": "$2b$12$...",
-  "role": "tutor",
-  "course": "Ciência da Computação",
-  "subjects": ["Cálculo I", "Programação I"],
-  "createdAt": "2026-10-27T13:05:00Z"
-}
-```
+| Nó | Função |
+|---|---|
+| `users` | Perfil público do usuário (nome, papel, curso, disciplinas). O e-mail e a senha ficam apenas no Firebase Authentication. |
+| `subjects` | Catálogo de disciplinas. |
+| `subjectTutors` | Índice para a **busca de monitores por disciplina**. |
+| `directConversations` | Garante **uma única** conversa direta por par de usuários. |
+| `conversations` | Metadados, resumo da última mensagem e participantes. |
+| `messages` | **Todas as mensagens**, agrupadas por conversa. |
+| `userConversations` | Índice por usuário: lista de conversas, atividade mais recente e última mensagem lida. |
 
-#### Coleção `conversations`
+#### Exemplo de dados (árvore JSON)
 
-**Conversa direta**
+> Valores de tempo são *timestamps* em milissegundos. As chaves como `-Oa1mMsg0012` representam IDs gerados por `push()`.
 
 ```json
 {
-  "_id": "c_001",
-  "type": "direct",
-  "directKey": "u_ana#u_bruno",
-  "participantIds": ["u_ana", "u_bruno"],
-  "subject": null,
-  "createdBy": "u_ana",
-  "createdAt": "2026-11-03T14:00:00Z",
-  "lastMessage": {
-    "text": "Obrigada, entendi a regra da cadeia!",
-    "senderId": "u_ana",
-    "createdAt": "2026-11-03T14:22:10Z"
+  "users": {
+    "uidAna": {
+      "name": "Ana Souza",
+      "role": "student",
+      "course": "Ciência da Computação",
+      "createdAt": 1793000000000
+    },
+    "uidBruno": {
+      "name": "Bruno Lima",
+      "role": "tutor",
+      "course": "Ciência da Computação",
+      "subjects": { "calculo1": true, "programacao1": true },
+      "createdAt": 1793000300000
+    }
   },
-  "lastMessageAt": "2026-11-03T14:22:10Z",
-  "messageCount": 12,
-  "lastSeq": 12,
-  "readState": {
-    "u_ana": { "lastReadSeq": 12 },
-    "u_bruno": { "lastReadSeq": 11 }
+
+  "subjects": {
+    "calculo1":     { "name": "Cálculo I" },
+    "programacao1": { "name": "Programação I" }
+  },
+
+  "subjectTutors": {
+    "calculo1":     { "uidBruno": true },
+    "programacao1": { "uidBruno": true }
+  },
+
+  "directConversations": {
+    "uidAna_uidBruno": "-Oa1cConvAnaBruno"
+  },
+
+  "conversations": {
+    "-Oa1cConvAnaBruno": {
+      "meta": {
+        "type": "direct",
+        "createdBy": "uidAna",
+        "createdAt": 1793714400000,
+        "lastMessage": {
+          "text": "Obrigada, entendi a regra da cadeia!",
+          "senderId": "uidAna",
+          "createdAt": 1793715730000
+        },
+        "lastMessageAt": 1793715730000
+      },
+      "participants": { "uidAna": true, "uidBruno": true }
+    },
+    "-Oa1cRoomCalculo1": {
+      "meta": {
+        "type": "group",
+        "name": "Sala de Estudo — Cálculo I",
+        "subject": "calculo1",
+        "createdBy": "system",
+        "createdAt": 1793000600000,
+        "lastMessage": {
+          "text": "Alguém tem a lista 3 resolvida?",
+          "senderId": "uidCarla",
+          "createdAt": 1793900000000
+        },
+        "lastMessageAt": 1793900000000
+      },
+      "participants": { "uidAna": true, "uidBruno": true, "uidCarla": true }
+    }
+  },
+
+  "messages": {
+    "-Oa1cConvAnaBruno": {
+      "-Oa1mMsg0011": {
+        "senderId": "uidBruno",
+        "text": "Derive a função de fora e multiplique pela derivada da de dentro.",
+        "createdAt": 1793715645000
+      },
+      "-Oa1mMsg0012": {
+        "senderId": "uidAna",
+        "text": "Obrigada, entendi a regra da cadeia!",
+        "createdAt": 1793715730000
+      }
+    }
+  },
+
+  "userConversations": {
+    "uidAna": {
+      "-Oa1cConvAnaBruno": { "lastMessageAt": 1793715730000, "lastReadKey": "-Oa1mMsg0012" },
+      "-Oa1cRoomCalculo1": { "lastMessageAt": 1793900000000, "lastReadKey": "-Oa1mRoom0040" }
+    },
+    "uidBruno": {
+      "-Oa1cConvAnaBruno": { "lastMessageAt": 1793715730000, "lastReadKey": "-Oa1mMsg0011" }
+    }
   }
 }
 ```
 
-**Sala de estudo**
-
-```json
-{
-  "_id": "c_calc1",
-  "type": "group",
-  "directKey": null,
-  "name": "Sala de Estudo — Cálculo I",
-  "subject": "Cálculo I",
-  "participantIds": ["u_ana", "u_bruno", "u_carla"],
-  "createdBy": "system",
-  "createdAt": "2026-10-27T13:30:00Z",
-  "lastMessage": {
-    "text": "Alguém tem a lista 3 resolvida?",
-    "senderId": "u_carla",
-    "createdAt": "2026-11-05T19:41:00Z"
-  },
-  "lastMessageAt": "2026-11-05T19:41:00Z",
-  "messageCount": 48,
-  "lastSeq": 48,
-  "readState": {
-    "u_ana": { "lastReadSeq": 40 },
-    "u_bruno": { "lastReadSeq": 48 },
-    "u_carla": { "lastReadSeq": 48 }
-  }
-}
-```
-
-#### Coleção `messages`
-
-```json
-{
-  "_id": "m_00012",
-  "conversationId": "c_001",
-  "seq": 12,
-  "senderId": "u_ana",
-  "text": "Obrigada, entendi a regra da cadeia!",
-  "type": "text",
-  "createdAt": "2026-11-03T14:22:10Z"
-}
-```
-
-```json
-{
-  "_id": "m_00011",
-  "conversationId": "c_001",
-  "seq": 11,
-  "senderId": "u_bruno",
-  "text": "Derive a função de fora e multiplique pela derivada da de dentro.",
-  "type": "text",
-  "createdAt": "2026-11-03T14:20:45Z"
-}
-```
+No exemplo, Bruno leu até `-Oa1mMsg0011`; portanto, tem **1 mensagem não lida** (a `-Oa1mMsg0012`).
 
 **Campos importantes**
 
 | Campo | Função |
 |---|---|
-| `seq` | Número sequencial **por conversa** (incrementado atomicamente em `conversations.lastSeq`). Garante ordem estável e serve de cursor e de base para "não lidas". |
-| `createdAt` | Data/hora definida pelo servidor (nunca pelo cliente), para evitar manipulação do histórico. |
-| `directKey` | Impede conversas diretas duplicadas via índice único. |
-| `readState.<userId>.lastReadSeq` | Última mensagem lida; não lidas = `lastSeq − lastReadSeq`. |
-| `lastMessage` / `lastMessageAt` | Dados desnormalizados para montar a lista de conversas sem consultar `messages`. |
+| Chave da mensagem (`push()`) | Ordem cronológica estável e única; serve de **cursor** na paginação. |
+| `createdAt` | Horário do servidor (`serverTimestamp()`), para exibição e para evitar manipulação do histórico. |
+| `directConversations/{directKey}` | Trava contra conversas diretas duplicadas. |
+| `userConversations/{uid}/{cid}/lastReadKey` | Última mensagem lida pelo usuário; não lidas = mensagens com chave maior que ela. |
+| `meta/lastMessage` e `lastMessageAt` | Dados desnormalizados para montar a lista de conversas sem ler `messages`. |
 
 #### Índices
 
-```javascript
-// users
-db.users.createIndex({ email: 1 }, { unique: true })
-db.users.createIndex({ subjects: 1, role: 1 })          // busca de monitores por disciplina
+O Realtime Database ordena por **chave** sem configuração. Só é preciso declarar índice para `orderByChild`:
 
-// conversations
-db.conversations.createIndex({ directKey: 1 }, { unique: true, sparse: true })
-db.conversations.createIndex({ participantIds: 1, lastMessageAt: -1 }) // lista de conversas
-
-// messages
-db.messages.createIndex({ conversationId: 1, seq: -1 })                // histórico paginado
-db.messages.createIndex({ conversationId: 1, seq: 1 }, { unique: true }) // sem seq duplicado
+```json
+{
+  "rules": {
+    "userConversations": {
+      "$uid": { ".indexOn": ["lastMessageAt"] }
+    }
+  }
+}
 ```
 
-#### Consultas principais
+#### Consultas principais (SDK modular do Firebase para JavaScript)
 
 ```javascript
-// 1. Lista de conversas do usuário (mais recente primeiro)
-db.conversations
-  .find({ participantIds: "u_ana" })
-  .sort({ lastMessageAt: -1 })
+import {
+  ref, query, get, push, update, serverTimestamp,
+  orderByKey, orderByChild, limitToLast, limitToFirst,
+  endBefore, startAfter, onChildAdded
+} from "firebase/database";
 
-// 2. Últimas 30 mensagens de uma conversa
-db.messages
-  .find({ conversationId: "c_001" })
-  .sort({ seq: -1 })
-  .limit(30)
-// (a API devolve ao cliente em ordem crescente de seq)
+// 1. Lista de conversas do usuário (as 20 mais recentes; o app inverte para exibir a mais nova primeiro)
+query(ref(db, `userConversations/${uid}`), orderByChild("lastMessageAt"), limitToLast(20));
 
-// 3. Página anterior (cursor = menor seq já carregada, ex.: 83)
-db.messages
-  .find({ conversationId: "c_001", seq: { $lt: 83 } })
-  .sort({ seq: -1 })
-  .limit(30)
+// 2. Últimas 30 mensagens + novas mensagens em tempo real
+onChildAdded(
+  query(ref(db, `messages/${cid}`), orderByKey(), limitToLast(30)),
+  (snap) => renderMessage(snap.key, snap.val())
+);
 
-// 4. Monitores de uma disciplina
-db.users.find({ role: "tutor", subjects: "Cálculo I" })
+// 3. Página anterior (cursor = menor chave já carregada)
+query(ref(db, `messages/${cid}`), orderByKey(), endBefore(oldestKey), limitToLast(30));
 
-// 5. Obter seq atômica ao enviar mensagem
-db.conversations.findOneAndUpdate(
-  { _id: "c_001", participantIds: "u_ana" },   // exige participação
-  { $inc: { lastSeq: 1, messageCount: 1 } },
-  { returnDocument: "after" }
-)
+// 4. Envio atômico (mensagem + resumo da conversa + atividade dos participantes)
+const msgKey = push(ref(db, `messages/${cid}`)).key;
+await update(ref(db), {
+  [`messages/${cid}/${msgKey}`]: { senderId: uid, text, createdAt: serverTimestamp() },
+  [`conversations/${cid}/meta/lastMessage`]: { text, senderId: uid, createdAt: serverTimestamp() },
+  [`conversations/${cid}/meta/lastMessageAt`]: serverTimestamp(),
+  [`userConversations/${uid}/${cid}/lastMessageAt`]: serverTimestamp(),
+  [`userConversations/${otherUid}/${cid}/lastMessageAt`]: serverTimestamp(),
+});
+
+// 5. Mensagens não lidas (as que vieram depois da última lida)
+query(ref(db, `messages/${cid}`), orderByKey(), startAfter(lastReadKey), limitToFirst(100));
+
+// 6. Monitores de uma disciplina (depois, lê-se users/{uid} de cada um)
+get(ref(db, `subjectTutors/${subjectId}`));
+
+// 7. Trava contra conversa direta duplicada (falha se a chave já existir)
+await update(ref(db), { [`directConversations/${directKey}`]: cid });
 ```
 
 ### 5.6 Regras de acesso às conversas e ao histórico
 
+As regras são aplicadas **no servidor do Firebase** (Security Rules), em toda leitura e escrita.
+
 | # | Regra |
 |---|---|
-| **RA01** | Somente usuários **autenticados** acessam qualquer recurso de conversa. |
-| **RA02** | Só é possível **ler** o histórico e **enviar** mensagens em conversas em que o usuário consta em `participantIds`. Caso contrário: **403 Forbidden**. |
-| **RA03** | A verificação de participação é feita **no servidor, em toda requisição** (nunca confiando só no front-end). |
-| **RA04** | O `senderId` da mensagem vem do usuário autenticado, **nunca** do corpo da requisição. |
-| **RA05** | Mensagens **não podem ser editadas nem apagadas** no MVP (histórico imutável). |
+| **RA01** | Somente usuários **autenticados** (Firebase Authentication) acessam qualquer dado de conversa. |
+| **RA02** | Só é possível **ler** o histórico e **enviar** mensagens em conversas em que o usuário consta em `participants`. Caso contrário, o Firebase recusa a operação com `PERMISSION_DENIED`. |
+| **RA03** | A verificação é feita pelas Security Rules, **nunca** apenas no front-end. |
+| **RA04** | O `senderId` da mensagem precisa ser igual ao `auth.uid` de quem escreve. |
+| **RA05** | Mensagens **não podem ser editadas nem apagadas** no MVP: a regra só permite escrita se o nó ainda não existe (`!data.exists()`). |
 | **RA06** | Conversa direta: ambos os participantes têm acesso a **todo** o histórico, de forma permanente. |
-| **RA07** | Sala de estudo: o participante vê o histórico enquanto for membro. Ao sair, perde o acesso. Ao entrar, vê o histórico anterior à entrada (decisão de transparência para estudo; pode ser alterada em versão futura). |
-| **RA08** | Um usuário só altera o **próprio** `readState` (marcar como lido). |
-| **RA09** | A listagem de conversas retorna **apenas** as do usuário autenticado. |
-| **RA10** | Mensagens têm limite de 2.000 caracteres e o texto é tratado (*escape*) na exibição, para evitar injeção de HTML/script. |
-| **RA11** | O banco não é exposto publicamente: somente a API se conecta a ele, com usuário e senha próprios. |
+| **RA07** | Sala de estudo: o participante vê o histórico enquanto for membro. Ao sair, o nó em `participants` é removido e a leitura passa a ser negada. Ao entrar, vê o histórico anterior à entrada (decisão de transparência para estudo; pode mudar em versão futura). |
+| **RA08** | Cada usuário só altera o **próprio** `lastReadKey`. Os demais participantes só podem atualizar `lastMessageAt` no índice dele. |
+| **RA09** | `userConversations/{uid}` só pode ser **lido** pelo próprio usuário; a lista de conversas é sempre a do usuário autenticado. |
+| **RA10** | Texto com 1 a 2.000 caracteres e ao menos um caractere visível; na exibição, o texto é tratado (*escape*) para evitar injeção de HTML/script. |
+| **RA11** | O horário `createdAt` deve ser igual ao horário do servidor (`now` nas regras). |
+| **RA12** | Não há permissão de leitura na raiz nem em `/messages` ou `/conversations` como um todo: só se lê por conversa, e apenas se for participante. |
+| **RA13** | O projeto publicado **nunca** usa regras abertas (`".read": true` / `".write": true`). |
+
+**Esboço inicial das Security Rules** (será refinado e testado no Emulator Suite durante a etapa 2):
+
+```json
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid",
+        "role": { ".validate": "newData.val() === 'student' || newData.val() === 'tutor'" }
+      }
+    },
+
+    "subjects": { ".read": "auth != null" },
+
+    "subjectTutors": {
+      "$subjectId": {
+        ".read": "auth != null",
+        "$uid": { ".write": "auth != null && auth.uid === $uid" }
+      }
+    },
+
+    "directConversations": {
+      "$key": {
+        ".read":  "auth != null && ($key.beginsWith(auth.uid) || $key.endsWith(auth.uid))",
+        ".write": "auth != null && !data.exists() && ($key.beginsWith(auth.uid) || $key.endsWith(auth.uid))"
+      }
+    },
+
+    "conversations": {
+      "$cid": {
+        ".read": "auth != null && data.child('participants').child(auth.uid).exists()",
+        ".write": "auth != null && !data.exists() && newData.child('meta').child('type').val() === 'direct' && newData.child('participants').numChildren() === 2 && newData.child('participants').child(auth.uid).exists()",
+        "meta": {
+          "lastMessage":   { ".write": "auth != null && root.child('conversations').child($cid).child('participants').child(auth.uid).exists()" },
+          "lastMessageAt": { ".write": "auth != null && root.child('conversations').child($cid).child('participants').child(auth.uid).exists()" }
+        },
+        "participants": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && data.parent().parent().child('meta').child('type').val() === 'group'"
+          }
+        }
+      }
+    },
+
+    "messages": {
+      "$cid": {
+        ".read": "auth != null && root.child('conversations').child($cid).child('participants').child(auth.uid).exists()",
+        "$mid": {
+          ".write": "auth != null && !data.exists() && root.child('conversations').child($cid).child('participants').child(auth.uid).exists()",
+          ".validate": "newData.hasChildren(['senderId','text','createdAt']) && newData.child('senderId').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 2000 && newData.child('text').val().matches(/.*\\S.*/) && newData.child('createdAt').val() === now"
+        }
+      }
+    },
+
+    "userConversations": {
+      "$uid": {
+        ".indexOn": ["lastMessageAt"],
+        ".read": "auth != null && auth.uid === $uid",
+        "$cid": {
+          ".write": "auth != null && auth.uid === $uid",
+          "lastMessageAt": {
+            ".write": "auth != null && root.child('conversations').child($cid).child('participants').child(auth.uid).exists()"
+          }
+        }
+      }
+    }
+  }
+}
+```
 
 ### 5.7 Critérios de aceitação da funcionalidade de conversa
 
@@ -599,58 +701,66 @@ db.conversations.findOneAndUpdate(
 
 | ID | Critério verificável |
 |---|---|
-| **CN01** | Dado um participante autenticado, quando envia texto válido, então o documento é inserido em `messages` com `conversationId`, `senderId`, `text`, `seq` e `createdAt` preenchidos, e a API responde **201**. |
-| **CN02** | Dado o envio de uma mensagem, então `conversations.lastMessage`, `lastMessageAt` e `messageCount` são atualizados. |
-| **CN03** | Dadas duas mensagens enviadas em sequência na mesma conversa, então a segunda tem `seq` **maior** que a primeira, sem repetição. |
-| **CN04** | Dado texto vazio, só com espaços ou com mais de 2.000 caracteres, então a API responde **400** e nada é salvo. |
-| **CN05** | Dado um usuário que não está em `participantIds`, quando tenta enviar, então a API responde **403** e nada é salvo. |
-| **CN06** | Dado que o corpo da requisição traz um `senderId` diferente do usuário autenticado, então o valor é ignorado e o autenticado é usado. |
+| **CN01** | Dado um participante autenticado, quando envia texto válido, então a mensagem é gravada em `messages/{conversationId}/{messageId}` com `senderId`, `text` e `createdAt` (horário do servidor) preenchidos. |
+| **CN02** | Dado o envio de uma mensagem, então `meta/lastMessage`, `meta/lastMessageAt` e o `lastMessageAt` de **todos** os participantes são atualizados na mesma operação. |
+| **CN03** | Dadas duas mensagens enviadas em sequência na mesma conversa, então a chave da segunda é **maior** que a da primeira. |
+| **CN04** | Dado texto vazio, só com espaços ou com mais de 2.000 caracteres, então a escrita é recusada (`PERMISSION_DENIED`) e nada é salvo. |
+| **CN05** | Dado um usuário que não está em `participants`, quando tenta enviar, então a escrita é recusada (`PERMISSION_DENIED`) e nada é salvo. |
+| **CN06** | Dado que o `senderId` informado é diferente do `auth.uid` do usuário, então a escrita é recusada. |
+| **CN07** | Dada uma mensagem já salva, quando alguém tenta editá-la ou apagá-la, então a operação é recusada. |
 
 #### Consulta
 
 | ID | Critério verificável |
 |---|---|
-| **CN07** | Dada uma conversa com 100 mensagens, quando o histórico é aberto, então são retornadas as 30 mais recentes (`seq` 71 a 100). |
-| **CN08** | Dado o cursor `before=71`, quando a próxima página é pedida, então retorna `seq` 41 a 70, sem repetir nem pular mensagens. |
-| **CN09** | Dado que a última página foi carregada, quando não há mais mensagens, então a resposta indica fim do histórico (lista vazia / `hasMore = false`). |
-| **CN10** | Dado um usuário que não participa da conversa, quando consulta o histórico, então a API responde **403**. |
-| **CN11** | Dado um `conversationId` inexistente, quando consultado, então a API responde **404**. |
-| **CN12** | Dada a reinicialização da aplicação, quando o histórico é consultado, então todas as mensagens anteriores permanecem (persistência no MongoDB). |
-| **CN13** | Dado um usuário com várias conversas, quando lista suas conversas, então elas vêm ordenadas por `lastMessageAt` decrescente e **somente** as dele aparecem. |
+| **CN08** | Dada uma conversa com 100 mensagens, quando o histórico é aberto, então são exibidas as 30 mais recentes (mensagens 71 a 100). |
+| **CN09** | Dado o cursor igual à chave da mensagem 71, quando a página anterior é pedida, então retornam as mensagens 41 a 70, sem repetir nem pular nenhuma. |
+| **CN10** | Dado que não há mais mensagens antigas, quando o usuário tenta carregar mais, então o app indica o fim do histórico. |
+| **CN11** | Dado um usuário que não participa da conversa, quando consulta o histórico, então a leitura é recusada (`PERMISSION_DENIED`). |
+| **CN12** | Dado que o usuário fecha e reabre o app, quando abre a conversa, então todas as mensagens anteriores permanecem (persistência no banco). |
+| **CN13** | Dado um usuário com várias conversas, quando abre a lista, então elas aparecem ordenadas por `lastMessageAt` (mais recente primeiro) e **somente** as dele aparecem. |
+
+#### Tempo real
+
+| ID | Critério verificável |
+|---|---|
+| **CN14** | Dados dois usuários com a mesma conversa aberta, quando um envia uma mensagem, então ela aparece para o outro em até 2 s, **sem recarregar a página**. |
+| **CN15** | Dado que a lista de conversas está aberta, quando chega mensagem em uma conversa, então essa conversa sobe para o topo da lista sem recarregar. |
 
 #### Ordenação
 
 | ID | Critério verificável |
 |---|---|
-| **CN14** | As mensagens são sempre exibidas em ordem **crescente de `seq`** (mais antiga no topo, mais recente embaixo). |
-| **CN15** | Mensagens com `createdAt` idêntico mantêm ordem estável, pois a ordenação usa `seq`. |
-| **CN16** | Dado o envio simultâneo por dois usuários, então as mensagens recebem `seq` distintos e consecutivos (sem colisão). |
+| **CN16** | As mensagens são sempre exibidas em ordem **crescente de chave** (mais antiga no topo, mais recente embaixo). |
+| **CN17** | Dado o envio simultâneo por dois usuários, então as duas mensagens são salvas, com chaves distintas, e **todos** os participantes as veem na mesma ordem. |
 
 #### Início de conversa e não lidas
 
-> CN17 e CN18 fazem parte do **MVP**; CN19 e CN20 (não lidas) fazem parte da **entrega final**.
+> CN18 e CN19 fazem parte do **MVP**; CN20 e CN21 (não lidas) fazem parte da **entrega final**.
 
 | ID | Critério verificável |
 |---|---|
-| **CN17** | Dado que não existe conversa direta entre A e B, quando A inicia conversa com B, então é criada **uma** conversa com `directKey` = IDs ordenados e `participantIds` = [A, B]. |
-| **CN18** | Dado que já existe conversa entre A e B, quando B inicia conversa com A, então a conversa existente é reutilizada (coleção continua com **um** documento para o par). |
-| **CN19** | Dadas 3 mensagens novas de B enviadas a A, então o contador de não lidas de A é 3 (`lastSeq − lastReadSeq`). |
-| **CN20** | Dado que A abre a conversa, então `readState.A.lastReadSeq` passa a ser igual a `lastSeq` e o contador volta a 0. |
+| **CN18** | Dado que não existe conversa direta entre A e B, quando A inicia conversa com B, então são criados `directConversations/{uidA_uidB}`, a conversa com 2 participantes e as entradas em `userConversations` dos dois. |
+| **CN19** | Dado que já existe conversa entre A e B, quando B inicia conversa com A (ou A clica duas vezes seguidas), então a conversa existente é reutilizada e continua existindo **uma só** conversa para o par. |
+| **CN20** | Dadas 3 mensagens novas de B para A após o `lastReadKey` de A, então o indicador de A mostra 3 não lidas. |
+| **CN21** | Dado que A abre a conversa, então `lastReadKey` de A passa a ser a chave da última mensagem e o indicador volta a 0. |
 
-#### Desempenho
+#### Desempenho e segurança
 
 | ID | Critério verificável |
 |---|---|
-| **CN21** | Com 100 mil mensagens na coleção, a consulta das 30 últimas de uma conversa responde em até 500 ms (p95) e o `explain()` mostra uso do índice `{conversationId, seq}` (sem `COLLSCAN`). |
+| **CN22** | Com 100 mil mensagens em uma conversa, abrir o histórico baixa apenas 30 mensagens e leva até 1 s (p95). |
+| **CN23** | Dado um usuário **não autenticado**, quando tenta ler ou escrever em qualquer nó, então a operação é recusada. |
+| **CN24** | As Security Rules possuem testes automatizados no Emulator Suite cobrindo CN05, CN06, CN07 e CN11. |
 
 ### 5.8 Decisões técnicas em aberto (a definir na etapa 2, até 26/10)
 
 | Tema | Opções | Critério de decisão |
 |---|---|---|
-| Atualização das mensagens | MVP: *polling* a cada 2–3 s. Entrega final: WebSocket (Socket.IO) | Tempo disponível; *polling* permanece como plano B |
-| Stack back-end | Node.js + Express **ou** Python + FastAPI | Conhecimento do grupo |
-| Stack front-end | React **ou** HTML/JS simples | Conhecimento do grupo |
-| Hospedagem do MongoDB | Docker local **ou** MongoDB Atlas (camada gratuita) | Facilidade para o grupo e para a apresentação |
+| Front-end | React **ou** HTML/JS simples (com o SDK modular do Firebase) | Conhecimento do grupo |
+| Hospedagem | Firebase Hosting **ou** GitHub Pages | Facilidade para a demonstração |
+| Região do banco | Opções oferecidas pelo Firebase no momento da criação | Menor latência disponível; a região não pode ser trocada depois |
+| Automação das regras | Testes com Emulator Suite via `@firebase/rules-unit-testing` | Tempo disponível; ao menos testes manuais no Emulator |
 
 ---
 
@@ -658,8 +768,11 @@ db.conversations.findOneAndUpdate(
 
 ```
 monitoraai/
-├── README.md          # descrição, link para docs/PRD.md e para o GitHub Project
+├── README.md              # descrição, link para docs/PRD.md e para o GitHub Project
 ├── docs/
-│   └── PRD.md         # este documento
-└── (código — etapas seguintes)
+│   └── PRD.md             # este documento
+├── firebase/
+│   ├── database.rules.json   # Security Rules
+│   └── seed.json             # dados de exemplo para importar
+└── (código do front-end — etapas seguintes)
 ```
