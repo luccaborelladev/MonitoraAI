@@ -9,8 +9,8 @@ Plataforma que conecta estudantes que precisam de ajuda em uma disciplina com mo
 | Item | Link |
 |---|---|
 | 📄 **PRD (Documento de Requisitos do Produto)** | [docs/PRD.md](docs/PRD.md) |
-| 📋 **GitHub Project (acompanhamento das atividades)** | `<COLE AQUI O LINK DO GITHUB PROJECT>` |
-| 📁 **Repositório** | `<COLE AQUI O LINK DO REPOSITÓRIO>` |
+| 📋 **GitHub Project (acompanhamento das atividades)** | `<https://github.com/luccaborelladev/MonitoraAI/projects>` |
+| 📁 **Repositório** | `<https://github.com/luccaborelladev/MonitoraAI>` |
 
 ## Sobre o projeto
 
@@ -68,12 +68,12 @@ Fora do projeto atual: agendamento, envio de arquivos, notificações, avaliaç�
 
 ## Equipe
 
-| Integrante | GitHub | Papel |
+| Integrante | Papel |
 |---|---|---|
-| Rafael | [@usuario1](https://github.com/usuario1) | Product Owner / Documentação / QA |
-| Guilherme | [@usuario2](https://github.com/usuario2) | Líder técnico / Back-end / DevOps |
-| Lucca | [@usuario3](https://github.com/usuario3) | Back-end / Banco de dados |
-| Metheus | [@usuario4](https://github.com/usuario4) | Front-end |
+| Rafael | Product Owner / Documentação / QA |
+| Guilherme | Líder técnico / Back-end / DevOps |
+| Lucca | Back-end / Banco de dados |
+| Metheus | Front-end |
 
 Responsabilidades detalhadas, backlog, prazos, dependências e riscos estão na [gerência do projeto](docs/PRD.md#4-gerência-do-projeto).
 
