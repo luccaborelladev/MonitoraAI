@@ -9,8 +9,8 @@ Plataforma que conecta estudantes que precisam de ajuda em uma disciplina com mo
 | Item | Link |
 |---|---|
 | 📄 **PRD (Documento de Requisitos do Produto)** | [docs/PRD.md](docs/PRD.md) |
-| 📋 **GitHub Project (acompanhamento das atividades)** | `<https://github.com/luccaborelladev/MonitoraAI/projects>` |
-| 📁 **Repositório** | `<https://github.com/luccaborelladev/MonitoraAI>` |
+| 📋 **GitHub Project (acompanhamento das atividades)** | `https://github.com/luccaborelladev/MonitoraAI/projects` |
+| 📁 **Repositório** | `https://github.com/luccaborelladev/MonitoraAI` |
 
 ## Sobre o projeto
 
@@ -69,10 +69,10 @@ Fora do projeto atual: agendamento, envio de arquivos, notificações, avaliaç�
 ## Equipe
 
 | Integrante | Papel |
-|---|---|---|
+|---|---|
 | Rafael | Product Owner / Documentação / QA |
-| Guilherme | Líder técnico / Back-end / DevOps |
-| Lucca | Back-end / Banco de dados |
+| Guilherme | Líder técnico / Firebase |
+| Lucca | Modelagem de dados / Back-end |
 | Metheus | Front-end |
 
 Responsabilidades detalhadas, backlog, prazos, dependências e riscos estão na [gerência do projeto](docs/PRD.md#4-gerência-do-projeto).
