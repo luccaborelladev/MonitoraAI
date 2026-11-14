@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MonitoraAí</title>
+<style>
+:root{--bg:#f3f5f9;--card:#fff;--tx:#14213d;--mut:#5d6779;--br:#dde2ec;--ink:#14213d;--inkTx:#fff;--hl:#ffd23f;--hlTx:#14213d;--ok:#17803d;--bad:#b3261e;--soft:#eaeef6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1524;--card:#18203a;--tx:#e8ecf6;--mut:#99a3b8;--br:#2b3556;--ink:#ffd23f;--inkTx:#14213d;--ok:#5fd18a;--bad:#ff8a80;--soft:#222c4b}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.02em}
+h1 span{background:linear-gradient(transparent 62%,var(--hl) 62%)}
+h3{margin:16px 0 6px;font-size:14px;color:var(--mut)}
+.sub{margin:0;color:var(--mut)}
+button,select,input{font:inherit;color:inherit}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--tx);outline-offset:2px}
+select,input{background:var(--card);border:1px solid var(--br);border-radius:8px;padding:8px 10px;width:100%}
+.btn{border:0;background:var(--ink);color:var(--inkTx);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;width:auto}
+.btn.g{background:var(--soft);color:var(--tx)}
+.btn.s{padding:3px 10px;font-size:13px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:16px}
+#auth{max-width:420px;margin:24px auto}
+#auth label{display:block;margin:10px 0 4px;font-size:13px;color:var(--mut)}
+.tabs{display:flex;gap:4px;background:var(--soft);padding:4px;border-radius:10px;margin:12px 0}
+.tabs button{flex:1;border:0;background:none;padding:7px;border-radius:7px;cursor:pointer;font-weight:600}
+.tabs button.on{background:var(--ink);color:var(--inkTx)}
+.msg{min-height:22px;margin-top:10px;font-size:13px;color:var(--bad)}
+.warn{background:var(--soft);border-left:4px solid var(--hl);padding:10px 14px;border-radius:4px 10px 10px 4px;margin:12px 0;font-size:13px}
+.chat{display:grid;grid-template-columns:300px 1fr;gap:12px;height:640px;max-height:85vh}
+aside,main{background:var(--card);border:1px solid var(--br);border-radius:14px;overflow:auto}
+aside{padding:4px 12px 12px}
+main{display:flex;flex-direction:column;overflow:hidden}
+.mh{padding:12px 16px;border-bottom:1px solid var(--br);font-weight:600}
+.mh small{display:block;color:var(--mut);font-weight:400;font-size:12px}
+.msgs{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.m{max-width:78%;padding:7px 12px;border-radius:14px 14px 14px 4px;background:var(--soft);align-self:flex-start;word-wrap:break-word;white-space:pre-wrap}
+.m.me{align-self:flex-end;background:var(--ink);color:var(--inkTx);border-radius:14px 14px 4px 14px}
+.m b{display:block;font-size:12px;opacity:.8}
+.m i{display:block;font-style:normal;font-size:11px;opacity:.65;text-align:right}
+.send{display:flex;gap:8px;padding:10px;border-top:1px solid var(--br)}
+.item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+.item:hover{background:var(--soft)}
+.item.on{border-color:var(--ink);background:var(--soft)}
+.item small{display:block;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.badge{background:var(--hl);color:var(--hlTx);font-weight:800;font-size:12px;border-radius:99px;min-width:22px;text-align:center;padding:1px 6px}
+.empty{color:var(--mut);padding:10px;font-size:13px}
+.err{color:var(--bad);font-size:13px;padding:0 12px 6px;min-height:20px}
+.chk{display:flex;gap:8px;align-items:center;padding:3px 0}
+.chk input{width:auto}
+@media (max-width:760px){.chat{grid-template-columns:1fr;height:auto;max-height:none}main{height:520px}aside{max-height:360px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<section id="auth" class="card">
+  <h1><span>Monitora</span>Aí</h1>
+  <p class="sub">Encontre um monitor da sua disciplina e converse com ele.</p>
+  <div id="cfgwarn" class="warn" hidden>Preencha o <b>firebaseConfig</b> no início do script deste arquivo (veja docs/CONFIGURACAO.md) para ativar o login e o chat.</div>
+  <div class="tabs"><button class="on" data-a="mode" data-m="login">Entrar</button><button data-a="mode" data-m="signup">Criar conta</button></div>
+  <div id="signupOnly" hidden>
+    <label for="name">Nome</label><input id="name" autocomplete="name">
+    <label for="role">Eu sou</label><select id="role"><option value="student">Aluno</option><option value="tutor">Monitor</option></select>
+    <label for="course">Curso</label><input id="course">
+  </div>
+  <label for="email">E-mail</label><input id="email" type="email" autocomplete="email">
+  <label for="pw">Senha (mínimo 6 caracteres)</label><input id="pw" type="password" autocomplete="current-password">
+  <p><button class="btn" id="go" data-a="submit">Entrar</button></p>
+  <div class="msg" id="amsg"></div>
+</section>
+
+<section id="app" hidden>
+  <header>
+    <div><h1><span>Monitora</span>Aí</h1><p class="sub" id="hi"></p></div>
+    <button class="btn g" data-a="logout">Sair</button>
+  </header>
+  <div class="chat">
+    <aside>
+      <div id="prof"></div>
+      <h3>Buscar monitor por disciplina</h3>
+      <select id="subj"></select>
+      <div id="tutors"></div>
+      <h3>Suas conversas</h3><div id="convs"></div>
+      <h3>Salas de estudo</h3><div id="rooms"></div>
+    </aside>
+    <main>
+      <div class="mh" id="title">Escolha uma conversa ou busque um monitor</div>
+      <div class="msgs" id="msgs"><div class="empty">Nenhuma conversa aberta.</div></div>
+      <div class="err" id="err"></div>
+      <div class="send"><input id="txt" placeholder="Escreva sua mensagem" maxlength="2100" aria-label="Mensagem"><button class="btn" data-a="send">Enviar</button></div>
+    </main>
+  </div>
+</section>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getDatabase, connectDatabaseEmulator, ref, get, set, update, remove, push, query, orderByKey, limitToLast, limitToFirst,
+  endBefore, startAfter, onChildAdded, onValue, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+/* ====== 1. COLE AQUI A CONFIGURAÇÃO DO SEU PROJETO FIREBASE ====== */
+const firebaseConfig = {
+  apiKey: "AIzaSyC7lAp_QhW3Senc6waIR7SJhg_lMe6weqY",
+  authDomain: "monitoraai-2a50c.firebaseapp.com",
+  databaseURL: "https://monitoraai-2a50c-default-rtdb.firebaseio.com",
+  projectId: "monitoraai-2a50c",
+  storageBucket: "monitoraai-2a50c.firebasestorage.app",
+  messagingSenderId: "836094963829",
+  appId: "1:836094963829:web:d2a3bbfd33d2ffc0aa483c"
+};
+/* ================================================================== */
+
+const EMU = location.search.includes("emulator"); // opcional: ?emulator usa o Firebase Emulator Suite
+const app = initializeApp(EMU ? { apiKey: "demo-key", authDomain: "demo.firebaseapp.com", projectId: "demo-monitoraai",
+  databaseURL: "http://127.0.0.1:9000?ns=demo-monitoraai" } : firebaseConfig);
+const auth = getAuth(app), db = getDatabase(app);
+if (EMU) { connectAuthEmulator(auth, "http://127.0.0.1:9099"); connectDatabaseEmulator(db, "127.0.0.1", 9000); }
+
+const $ = s => document.querySelector(s);
+const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+const hm = t => t ? new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
+const R = p => ref(db, p);
+
+let me = null, profile = null, subjects = {}, ucs = {}, convs = {}, names = {}, cur = null;
+let mode = "login", signingUp = false, offUC = null, convTok = 0;
+
+if (!EMU && firebaseConfig.apiKey.startsWith("COLE")) { $("#cfgwarn").hidden = false; $("#go").disabled = true; }
+
+/* ---------- Autenticação ---------- */
+const AUTH_ERR = {
+  "auth/invalid-credential": "E-mail ou senha incorretos.",
+  "auth/email-already-in-use": "Este e-mail já está cadastrado.",
+  "auth/weak-password": "A senha precisa ter ao menos 6 caracteres.",
+  "auth/invalid-email": "E-mail inválido.",
+  "PERMISSION_DENIED": "Acesso negado pelas regras do banco. Confira se as Security Rules foram publicadas."
+};
+const errText = e => AUTH_ERR[e.code] || AUTH_ERR[(e.message || "").split(":")[0]] || e.message || "Algo deu errado.";
+
+async function submit() {
+  const email = $("#email").value.trim(), pw = $("#pw").value, msg = $("#amsg");
+  msg.textContent = "";
+  try {
+    if (mode === "login") { await signInWithEmailAndPassword(auth, email, pw); return; }
+    const name = $("#name").value.trim();
+    if (!name) { msg.textContent = "Informe seu nome."; return; }
+    signingUp = true;
+    const cred = await createUserWithEmailAndPassword(auth, email, pw);
+    me = cred.user.uid;
+    await set(R("users/" + me), { name, role: $("#role").value, course: $("#course").value.trim() || "Não informado", createdAt: serverTimestamp() });
+    signingUp = false;
+    await enter();
+  } catch (e) { signingUp = false; msg.textContent = errText(e); }
+}
+
+onAuthStateChanged(auth, async u => {
+  if (!u) { leave(); return; }
+  me = u.uid;
+  if (signingUp) return;
+  try { await enter(); } catch (e) { $("#amsg").textContent = errText(e); }
+});
+
+function leave() {
+  closeConv(); if (offUC) { offUC(); offUC = null; }
+  me = null; ucs = {}; convs = {};
+  $("#app").hidden = true; $("#auth").hidden = false;
+}
+
+/* ---------- Entrada no app ---------- */
+async function enter() {
+  profile = (await get(R("users/" + me))).val();
+  if (!profile) { await signOut(auth); $("#amsg").textContent = "Perfil não encontrado. Crie a conta novamente."; return; }
+  names[me] = profile.name;
+  subjects = (await get(R("subjects"))).val() || {};
+  $("#auth").hidden = true; $("#app").hidden = false;
+  $("#hi").textContent = profile.name + " (" + (profile.role === "tutor" ? "monitor" : "aluno") + ")";
+  const sel = $("#subj"); sel.innerHTML = "";
+  Object.keys(subjects).forEach(s => { const o = el("option", "", subjects[s].name); o.value = s; sel.appendChild(o); });
+  renderProfile(); loadTutors();
+  if (offUC) offUC();
+  offUC = onValue(R("userConversations/" + me), snap => { ucs = snap.val() || {}; renderConvs(); renderRooms(); },
+    e => { $("#err").textContent = errText(e); });
+}
+
+async function uname(u) {
+  if (!names[u]) { try { names[u] = (await get(R("users/" + u))).val()?.name; } catch (e) {} }
+  return names[u] || "Usuário";
+}
+
+/* ---------- Perfil e busca de monitores ---------- */
+function renderProfile() {
+  const box = $("#prof"); box.innerHTML = "";
+  if (profile.role !== "tutor") return;
+  box.appendChild(el("h3", "", "Disciplinas que você atende"));
+  Object.keys(subjects).forEach(s => {
+    const l = el("label", "chk"), c = el("input"); c.type = "checkbox"; c.checked = !!(profile.subjects && profile.subjects[s]);
+    c.addEventListener("change", async () => {
+      const v = c.checked ? true : null;
+      await update(ref(db), { ["users/" + me + "/subjects/" + s]: v, ["subjectTutors/" + s + "/" + me]: v });
+      profile.subjects = profile.subjects || {}; if (v) profile.subjects[s] = true; else delete profile.subjects[s];
+      loadTutors();
+    });
+    l.append(c, document.createTextNode(subjects[s].name)); box.appendChild(l);
+  });
+}
+
+async function loadTutors() {
+  const sid = $("#subj").value, box = $("#tutors"); box.innerHTML = "";
+  if (!sid) return;
+  const ids = Object.keys((await get(R("subjectTutors/" + sid))).val() || {}).filter(u => u !== me);
+  if (!ids.length) { box.appendChild(el("div", "empty", "Nenhum monitor encontrado para esta disciplina.")); return; }
+  for (const u of ids) {
+    const row = el("div", "item"), d = el("div", "", await uname(u));
+    const b = el("button", "btn s", "Conversar"); b.dataset.a = "talk"; b.dataset.u = u;
+    row.append(d, b); box.appendChild(row);
+  }
+}
+
+/* ---------- Lista de conversas e salas ---------- */
+async function unread(cid) {
+  const lr = ucs[cid] && ucs[cid].lastReadKey, base = R("messages/" + cid);
+  const s = await get(lr ? query(base, orderByKey(), startAfter(lr), limitToFirst(100)) : query(base, orderByKey(), limitToLast(100)));
+  let n = 0; s.forEach(c => { if (c.val().senderId !== me) n++; }); return n;
+}
+
+async function renderConvs() {
+  const tok = ++convTok, box = $("#convs");
+  const ids = Object.keys(ucs).sort((a, b) => (ucs[b].lastMessageAt || 0) - (ucs[a].lastMessageAt || 0));
+  const rows = await Promise.all(ids.map(async cid => {
+    try {
+      const d = (await get(R("conversations/" + cid))).val(); if (!d) return null;
+      convs[cid] = d;
+      const other = Object.keys(d.participants || {}).find(p => p !== me);
+      const title = d.meta.type === "group" ? d.meta.name : await uname(other);
+      return { cid, title, last: (d.meta.lastMessage && d.meta.lastMessage.text) || "Sem mensagens", n: await unread(cid) };
+    } catch (e) { return null; }
+  }));
+  if (tok !== convTok) return;
+  box.innerHTML = "";
+  const ok = rows.filter(Boolean);
+  if (!ok.length) { box.appendChild(el("div", "empty", "Você ainda não tem conversas. Busque um monitor acima.")); return; }
+  ok.forEach(r => {
+    const row = el("div", "item" + (cur && cur.cid === r.cid ? " on" : "")); row.dataset.a = "conv"; row.dataset.c = r.cid;
+    const d = el("div", "", r.title); d.appendChild(el("small", "", r.last)); row.appendChild(d);
+    if (r.n) row.appendChild(el("span", "badge", r.n > 99 ? "99+" : String(r.n)));
+    box.appendChild(row);
+  });
+}
+
+function renderRooms() {
+  const box = $("#rooms"); box.innerHTML = "";
+  Object.keys(subjects).forEach(sid => {
+    const cid = "room_" + sid, member = !!ucs[cid];
+    const row = el("div", "item"), d = el("div", "", "Sala de estudo de " + subjects[sid].name);
+    if (member) { row.dataset.a = "conv"; row.dataset.c = cid; }
+    const b = el("button", "btn g s", member ? "Sair" : "Entrar"); b.dataset.a = member ? "leaveRoom" : "joinRoom"; b.dataset.s = sid;
+    row.append(d, b); box.appendChild(row);
+  });
+}
+
+/* ---------- Conversa direta (sem duplicidade) ---------- */
+async function startDirect(o) {
+  const key = [me, o].sort().join("_");
+  let cid, created = false;
+  const ex = await get(R("directConversations/" + key));
+  if (ex.exists()) cid = ex.val();
+  else {
+    cid = push(R("conversations")).key;
+    try { await set(R("directConversations/" + key), cid); }
+    catch (e) { const again = await get(R("directConversations/" + key)); if (!again.exists()) throw e; cid = again.val(); }
+  }
+  if (!(await get(R("userConversations/" + me + "/" + cid))).exists()) {
+    try {
+      await set(R("conversations/" + cid), { meta: { type: "direct", createdBy: me, createdAt: serverTimestamp(), lastMessageAt: serverTimestamp() },
+        participants: { [me]: true, [o]: true } });
+      created = true;
+    } catch (e) { /* a conversa já existe */ }
+    if (created) await update(ref(db), { ["userConversations/" + me + "/" + cid + "/lastMessageAt"]: serverTimestamp(),
+      ["userConversations/" + o + "/" + cid + "/lastMessageAt"]: serverTimestamp() });
+    else {
+      const last = (await get(R("conversations/" + cid + "/meta/lastMessageAt"))).val() || 0;
+      await set(R("userConversations/" + me + "/" + cid), { lastMessageAt: last });
+    }
+  }
+  return cid;
+}
+
+/* ---------- Abrir conversa, histórico e tempo real ---------- */
+function closeConv() {
+  if (cur) { if (cur.off) cur.off(); clearTimeout(cur.timer); }
+  cur = null;
+  $("#title").textContent = "Escolha uma conversa ou busque um monitor";
+  $("#msgs").innerHTML = '<div class="empty">Nenhuma conversa aberta.</div>';
+}
+
+function msgEl(key, v) {
+  const mine = v.senderId === me, d = el("div", "m" + (mine ? " me" : "")); d.dataset.k = key;
+  if (!mine && cur.data.meta.type === "group") d.appendChild(el("b", "", names[v.senderId] || "Usuário"));
+  d.appendChild(document.createTextNode(v.text)); d.appendChild(el("i", "", hm(v.createdAt)));
+  return d;
+}
+
+async function openConv(cid) {
+  closeConv(); $("#err").textContent = "";
+  try {
+    const data = (await get(R("conversations/" + cid))).val();
+    if (!data) throw new Error("Conversa não encontrada.");
+    cur = { cid, data, oldest: null, latest: null, written: null, timer: null, off: null };
+    await Promise.all(Object.keys(data.participants || {}).map(uname));
+    const other = Object.keys(data.participants).find(p => p !== me);
+    $("#title").innerHTML = "";
+    $("#title").textContent = data.meta.type === "group" ? data.meta.name : names[other];
+    $("#title").appendChild(el("small", "", (data.meta.type === "group" ? "Sala com " : "Conversa direta com ") +
+      Object.keys(data.participants).map(p => names[p] || "Usuário").join(", ")));
+    const box = $("#msgs"); box.innerHTML = "";
+    const more = el("button", "btn g s", "Carregar mensagens anteriores"); more.dataset.a = "more"; more.id = "more"; more.style.alignSelf = "center";
+    box.appendChild(more);
+    const mine = cur;
+    mine.off = onChildAdded(query(R("messages/" + cid), orderByKey(), limitToLast(30)), snap => {
+      if (cur !== mine) return;
+      const near = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+      if (!mine.oldest) mine.oldest = snap.key;
+      mine.latest = snap.key;
+      box.appendChild(msgEl(snap.key, snap.val()));
+      if (near || box.querySelectorAll(".m").length <= 30) box.scrollTop = box.scrollHeight;
+      scheduleRead();
+    }, e => { $("#err").textContent = errText(e); });
+    renderConvs();
+  } catch (e) { $("#err").textContent = errText(e); closeConv(); }
+}
+
+function scheduleRead() {
+  clearTimeout(cur.timer); const c = cur;
+  c.timer = setTimeout(async () => {
+    if (cur !== c || !c.latest || c.latest === c.written) return;
+    c.written = c.latest;
+    try { await update(ref(db), { ["userConversations/" + me + "/" + c.cid + "/lastReadKey"]: c.latest }); } catch (e) {}
+  }, 400);
+}
+
+async function loadMore() {
+  if (!cur || !cur.oldest) return;
+  const box = $("#msgs"), c = cur;
+  const snap = await get(query(R("messages/" + c.cid), orderByKey(), endBefore(c.oldest), limitToLast(30)));
+  const items = []; snap.forEach(x => { items.push([x.key, x.val()]); });
+  const h = box.scrollHeight, first = box.querySelector(".m"), frag = document.createDocumentFragment();
+  items.forEach(([k, v]) => frag.appendChild(msgEl(k, v)));
+  if (first) box.insertBefore(frag, first); else box.appendChild(frag);
+  if (items.length) c.oldest = items[0][0];
+  box.scrollTop += box.scrollHeight - h;
+  if (items.length < 30) { const b = $("#more"); if (b) { b.textContent = "Início da conversa"; b.disabled = true; } }
+}
+
+/* ---------- Envio de mensagens ---------- */
+async function doSend() {
+  const err = $("#err"), text = $("#txt").value;
+  err.textContent = "";
+  if (!cur) { err.textContent = "Abra uma conversa antes de enviar."; return; }
+  if (!/\S/.test(text)) { err.textContent = "Escreva alguma coisa antes de enviar."; return; }
+  if (text.length > 2000) { err.textContent = "A mensagem pode ter no máximo 2.000 caracteres."; return; }
+  const cid = cur.cid, ts = serverTimestamp();
+  try {
+    const parts = Object.keys((await get(R("conversations/" + cid + "/participants"))).val() || {});
+    const key = push(R("messages/" + cid)).key, up = {};
+    up["messages/" + cid + "/" + key] = { senderId: me, text, createdAt: ts };
+    up["conversations/" + cid + "/meta/lastMessage"] = { text, senderId: me, createdAt: ts };
+    up["conversations/" + cid + "/meta/lastMessageAt"] = ts;
+    parts.forEach(p => { up["userConversations/" + p + "/" + cid + "/lastMessageAt"] = ts; });
+    await update(ref(db), up);
+    $("#txt").value = "";
+  } catch (e) { err.textContent = "Mensagem recusada: " + errText(e); }
+}
+
+/* ---------- Salas de estudo ---------- */
+async function joinRoom(sid) {
+  const cid = "room_" + sid;
+  try {
+    await set(R("conversations/" + cid + "/participants/" + me), true);
+    const last = (await get(R("conversations/" + cid + "/meta/lastMessageAt"))).val() || 0;
+    await set(R("userConversations/" + me + "/" + cid), { lastMessageAt: last });
+    openConv(cid);
+  } catch (e) { $("#err").textContent = "Não foi possível entrar na sala: " + errText(e); }
+}
+async function leaveRoom(sid) {
+  const cid = "room_" + sid;
+  try {
+    if (cur && cur.cid === cid) closeConv();
+    await remove(R("conversations/" + cid + "/participants/" + me));
+    await remove(R("userConversations/" + me + "/" + cid));
+  } catch (e) { $("#err").textContent = "Não foi possível sair da sala: " + errText(e); }
+}
+
+/* ---------- Eventos ---------- */
+const ACT = {
+  mode(d) {
+    mode = d.m; $("#signupOnly").hidden = mode !== "signup"; $("#go").textContent = mode === "login" ? "Entrar" : "Criar conta";
+    document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.m === mode));
+    $("#amsg").textContent = "";
+  },
+  submit, send: doSend, more: loadMore,
+  logout() { signOut(auth); },
+  conv(d) { openConv(d.c); },
+  async talk(d) { try { openConv(await startDirect(d.u)); } catch (e) { $("#err").textContent = errText(e); } },
+  joinRoom(d) { joinRoom(d.s); },
+  leaveRoom(d) { leaveRoom(d.s); }
+};
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-a]"); if (!b || !ACT[b.dataset.a]) return;
+  if (b.dataset.a === "conv" && e.target.closest("button")) return;
+  ACT[b.dataset.a](b.dataset);
+});
+$("#txt").addEventListener("keydown", e => { if (e.key === "Enter") doSend(); });
+$("#subj").addEventListener("change", loadTutors);
+["#email", "#pw"].forEach(s => $(s).addEventListener("keydown", e => { if (e.key === "Enter") submit(); }));
+</script>
+</body>
+</html>

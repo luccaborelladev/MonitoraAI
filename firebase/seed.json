@@ -1,0 +1,21 @@
+{
+  "subjects": {
+    "calculo1":     { "name": "Cálculo I" },
+    "programacao1": { "name": "Programação I" },
+    "fisica1":      { "name": "Física I" }
+  },
+  "conversations": {
+    "room_calculo1": {
+      "meta": { "type": "group", "name": "Sala de estudo de Cálculo I", "subject": "calculo1", "createdBy": "system", "createdAt": 1793000000000, "lastMessageAt": 1793000000000 },
+      "participants": { "system": true }
+    },
+    "room_programacao1": {
+      "meta": { "type": "group", "name": "Sala de estudo de Programação I", "subject": "programacao1", "createdBy": "system", "createdAt": 1793000000000, "lastMessageAt": 1793000000000 },
+      "participants": { "system": true }
+    },
+    "room_fisica1": {
+      "meta": { "type": "group", "name": "Sala de estudo de Física I", "subject": "fisica1", "createdBy": "system", "createdAt": 1793000000000, "lastMessageAt": 1793000000000 },
+      "participants": { "system": true }
+    }
+  }
+}

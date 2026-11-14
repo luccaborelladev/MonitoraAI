@@ -1,0 +1,74 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['name','role'])",
+        "role": { ".validate": "newData.val() === 'student' || newData.val() === 'tutor'" }
+      }
+    },
+
+    "subjects": { ".read": "auth != null" },
+
+    "subjectTutors": {
+      "$subjectId": {
+        ".read": "auth != null",
+        "$uid": { ".write": "auth != null && auth.uid === $uid" }
+      }
+    },
+
+    "directConversations": {
+      "$key": {
+        ".read": "auth != null && ($key.beginsWith(auth.uid) || $key.endsWith(auth.uid))",
+        ".write": "auth != null && !data.exists() && ($key.beginsWith(auth.uid) || $key.endsWith(auth.uid))"
+      }
+    },
+
+    "conversations": {
+      "$cid": {
+        ".read": "auth != null && data.child('participants').child(auth.uid).exists()",
+        ".write": "auth != null && !data.exists() && newData.child('meta').child('type').val() === 'direct' && newData.child('participants').hasChildren() && newData.child('participants').child(auth.uid).exists()",
+        "meta": {
+          "lastMessage": {
+            ".write": "auth != null && root.child('conversations').child($cid).child('participants').child(auth.uid).exists()"
+          },
+          "lastMessageAt": {
+            ".write": "auth != null && root.child('conversations').child($cid).child('participants').child(auth.uid).exists()"
+          }
+        },
+        "participants": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && data.parent().parent().child('meta').child('type').val() === 'group'"
+          }
+        }
+      }
+    },
+
+    "messages": {
+      "$cid": {
+        ".read": "auth != null && root.child('conversations').child($cid).child('participants').child(auth.uid).exists()",
+        "$mid": {
+          ".write": "auth != null && !data.exists() && root.child('conversations').child($cid).child('participants').child(auth.uid).exists()",
+          ".validate": "newData.hasChildren(['senderId','text','createdAt']) && newData.child('senderId').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 2000 && newData.child('text').val().matches(/.*\\S.*/) && newData.child('createdAt').val() === now"
+        }
+      }
+    },
+
+    "userConversations": {
+      "$uid": {
+        ".indexOn": ["lastMessageAt"],
+        ".read": "auth != null && auth.uid === $uid",
+        "$cid": {
+          ".write": "auth != null && auth.uid === $uid",
+          "lastMessageAt": {
+            ".write": "auth != null && root.child('conversations').child($cid).child('participants').child(auth.uid).exists()"
+          }
+        }
+      }
+    }
+  }
+}
